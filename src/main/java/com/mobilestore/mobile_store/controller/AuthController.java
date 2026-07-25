@@ -8,6 +8,7 @@ import com.mobilestore.mobile_store.repository.AdminRepository;
 import com.mobilestore.mobile_store.repository.RevokedTokenRepository;
 import com.mobilestore.mobile_store.security.JwtService;
 import com.mobilestore.mobile_store.security.LoginRateLimiter;
+import com.mobilestore.mobile_store.service.EmailService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
 import java.util.Map;
 
 @RestController
@@ -30,6 +32,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final LoginRateLimiter loginRateLimiter;
     private final RevokedTokenRepository revokedTokenRepository;
+    private final EmailService emailService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponseDto<Map<String, String>>> login(
@@ -54,6 +57,23 @@ public class AuthController {
                 "role", "ADMIN"
         );
         return ResponseEntity.ok(ApiResponseDto.success("Login successful", data));
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponseDto<Map<String, String>>> sendOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponseDto.error("Email address is required"));
+        }
+
+        String otpCode = String.format("%06d", new SecureRandom().nextInt(1000000));
+        emailService.sendOtpEmail(email, otpCode);
+
+        Map<String, String> data = Map.of(
+                "otp", otpCode,
+                "email", email
+        );
+        return ResponseEntity.ok(ApiResponseDto.success("OTP sent successfully", data));
     }
 
     @PostMapping("/logout")
