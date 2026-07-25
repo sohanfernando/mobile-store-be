@@ -1,9 +1,11 @@
 package com.mobilestore.mobile_store.service.impl;
 
+import com.mobilestore.mobile_store.entity.Order;
 import com.mobilestore.mobile_store.messaging.OrderCreatedEvent;
 import com.mobilestore.mobile_store.service.EmailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -27,6 +29,7 @@ public class EmailServiceImpl implements EmailService {
             .build();
 
     @Override
+    @Async
     public void sendOrderConfirmationEmail(OrderCreatedEvent event) {
         String subject = "Order Confirmation #" + event.orderNumber() + " - TechPulse Store";
         String htmlBody = """
@@ -82,6 +85,250 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
+    @Async
+    public void sendPaymentCompletedEmail(Order order) {
+        String recipient = getCustomerEmail(order);
+        if (recipient == null || recipient.isBlank()) return;
+
+        String subject = "Payment Confirmed for Order #" + order.getOrderNumber() + " - TechPulse";
+        String htmlBody = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f8f7; margin: 0; padding: 20px; color: #171717; }
+                    .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; padding: 32px; border: 1px solid #eaeaea; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+                    .header { text-align: center; padding-bottom: 24px; border-bottom: 1px solid #eaeaea; }
+                    .title { font-size: 24px; font-weight: 900; text-transform: uppercase; color: #FF6600; margin: 0; }
+                    .subtitle { font-size: 12px; color: #6B6B68; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+                    .badge { display: inline-block; background: #dcfce7; color: #166534; font-weight: 800; font-size: 12px; padding: 6px 14px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px; }
+                    .content { padding: 24px 0; line-height: 1.6; }
+                    .order-box { background: #f8f8f7; border-radius: 16px; padding: 20px; margin: 20px 0; border: 1px solid #eaeaea; }
+                    .order-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+                    .total-row { font-size: 18px; font-weight: 900; color: #FF6600; border-top: 1px solid #eaeaea; padding-top: 12px; margin-top: 12px; }
+                    .footer { text-align: center; font-size: 12px; color: #6B6B68; padding-top: 20px; border-top: 1px solid #eaeaea; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="header">
+                        <span class="badge">Payment Received</span>
+                        <h1 class="title">TechPulse</h1>
+                        <p class="subtitle">Official Receipt</p>
+                    </div>
+                    <div class="content">
+                        <h2>Payment Successful, %s!</h2>
+                        <p>Your payment for Order <strong>#%s</strong> has been successfully processed and verified.</p>
+                        
+                        <div class="order-box">
+                            <div class="order-row"><span>Order Number:</span> <strong>#%s</strong></div>
+                            <div class="order-row"><span>Payment Status:</span> <strong style="color:#166534;">PAID</strong></div>
+                            <div class="order-row"><span>Delivery Address:</span> <strong>%s</strong></div>
+                            <div class="order-row total-row"><span>Amount Paid:</span> <strong>Rs. %,.2f</strong></div>
+                        </div>
+
+                        <p>Our dispatch team is preparing your package for priority delivery across Sri Lanka.</p>
+                    </div>
+                    <div class="footer">
+                        <p>Need help? Contact us at support@techpulse.lk</p>
+                        <p>&copy; 2026 TechPulse Mobile Store. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                getCustomerName(order),
+                order.getOrderNumber(),
+                order.getOrderNumber(),
+                getCustomerAddress(order),
+                order.getTotal() != null ? order.getTotal() : java.math.BigDecimal.ZERO
+        );
+
+        sendHtmlEmail(recipient, subject, htmlBody);
+    }
+
+    @Override
+    @Async
+    public void sendOrderShippedEmail(Order order) {
+        String recipient = getCustomerEmail(order);
+        if (recipient == null || recipient.isBlank()) return;
+
+        String subject = "🚚 Your Order #" + order.getOrderNumber() + " Has Been Shipped! - TechPulse";
+        String htmlBody = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f8f7; margin: 0; padding: 20px; color: #171717; }
+                    .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; padding: 32px; border: 1px solid #eaeaea; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+                    .header { text-align: center; padding-bottom: 24px; border-bottom: 1px solid #eaeaea; }
+                    .title { font-size: 24px; font-weight: 900; text-transform: uppercase; color: #FF6600; margin: 0; }
+                    .subtitle { font-size: 12px; color: #6B6B68; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+                    .badge { display: inline-block; background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 12px; padding: 6px 14px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px; }
+                    .content { padding: 24px 0; line-height: 1.6; }
+                    .order-box { background: #f8f8f7; border-radius: 16px; padding: 20px; margin: 20px 0; border: 1px solid #eaeaea; }
+                    .order-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+                    .total-row { font-size: 18px; font-weight: 900; color: #FF6600; border-top: 1px solid #eaeaea; padding-top: 12px; margin-top: 12px; }
+                    .footer { text-align: center; font-size: 12px; color: #6B6B68; padding-top: 20px; border-top: 1px solid #eaeaea; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="header">
+                        <span class="badge">🚚 Order Dispatched</span>
+                        <h1 class="title">TechPulse</h1>
+                        <p class="subtitle">On The Way</p>
+                    </div>
+                    <div class="content">
+                        <h2>Great news, %s!</h2>
+                        <p>Your package for Order <strong>#%s</strong> has been handed over to our courier express service and is on its way to you.</p>
+                        
+                        <div class="order-box">
+                            <div class="order-row"><span>Order Number:</span> <strong>#%s</strong></div>
+                            <div class="order-row"><span>Status:</span> <strong style="color:#0369a1;">SHIPPED / IN TRANSIT</strong></div>
+                            <div class="order-row"><span>Delivery Address:</span> <strong>%s</strong></div>
+                            <div class="order-row"><span>Courier Partner:</span> <strong>Express Island-wide Delivery</strong></div>
+                        </div>
+
+                        <p>Please ensure someone is available at the delivery address to receive your items.</p>
+                    </div>
+                    <div class="footer">
+                        <p>Need help? Contact us at support@techpulse.lk</p>
+                        <p>&copy; 2026 TechPulse Mobile Store. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                getCustomerName(order),
+                order.getOrderNumber(),
+                order.getOrderNumber(),
+                getCustomerAddress(order)
+        );
+
+        sendHtmlEmail(recipient, subject, htmlBody);
+    }
+
+    @Override
+    @Async
+    public void sendOrderDeliveredEmail(Order order) {
+        String recipient = getCustomerEmail(order);
+        if (recipient == null || recipient.isBlank()) return;
+
+        String subject = "🎉 Your Order #" + order.getOrderNumber() + " Has Been Delivered! - TechPulse";
+        String htmlBody = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f8f7; margin: 0; padding: 20px; color: #171717; }
+                    .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; padding: 32px; border: 1px solid #eaeaea; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+                    .header { text-align: center; padding-bottom: 24px; border-bottom: 1px solid #eaeaea; }
+                    .title { font-size: 24px; font-weight: 900; text-transform: uppercase; color: #FF6600; margin: 0; }
+                    .subtitle { font-size: 12px; color: #6B6B68; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+                    .badge { display: inline-block; background: #dcfce7; color: #15803d; font-weight: 800; font-size: 12px; padding: 6px 14px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px; }
+                    .content { padding: 24px 0; line-height: 1.6; }
+                    .order-box { background: #f8f8f7; border-radius: 16px; padding: 20px; margin: 20px 0; border: 1px solid #eaeaea; }
+                    .order-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+                    .total-row { font-size: 18px; font-weight: 900; color: #FF6600; border-top: 1px solid #eaeaea; padding-top: 12px; margin-top: 12px; }
+                    .footer { text-align: center; font-size: 12px; color: #6B6B68; padding-top: 20px; border-top: 1px solid #eaeaea; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="header">
+                        <span class="badge">🎉 Delivered Successfully</span>
+                        <h1 class="title">TechPulse</h1>
+                        <p class="subtitle">Package Delivered</p>
+                    </div>
+                    <div class="content">
+                        <h2>Order Delivered, %s!</h2>
+                        <p>Your package for Order <strong>#%s</strong> has been safely delivered to your address.</p>
+                        
+                        <div class="order-box">
+                            <div class="order-row"><span>Order Number:</span> <strong>#%s</strong></div>
+                            <div class="order-row"><span>Status:</span> <strong style="color:#15803d;">DELIVERED</strong></div>
+                            <div class="order-row"><span>Delivered To:</span> <strong>%s</strong></div>
+                        </div>
+
+                        <p>We hope you love your new tech! If you have any questions or feedback, feel free to reply to this email or review your purchase on TechPulse.</p>
+                    </div>
+                    <div class="footer">
+                        <p>Thank you for choosing TechPulse Mobile Store!</p>
+                        <p>&copy; 2026 TechPulse Mobile Store. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                getCustomerName(order),
+                order.getOrderNumber(),
+                order.getOrderNumber(),
+                getCustomerAddress(order)
+        );
+
+        sendHtmlEmail(recipient, subject, htmlBody);
+    }
+
+    @Override
+    @Async
+    public void sendOrderCancelledEmail(Order order) {
+        String recipient = getCustomerEmail(order);
+        if (recipient == null || recipient.isBlank()) return;
+
+        String subject = "Order Cancellation Update #" + order.getOrderNumber() + " - TechPulse";
+        String htmlBody = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f8f7; margin: 0; padding: 20px; color: #171717; }
+                    .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; padding: 32px; border: 1px solid #eaeaea; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+                    .header { text-align: center; padding-bottom: 24px; border-bottom: 1px solid #eaeaea; }
+                    .title { font-size: 24px; font-weight: 900; text-transform: uppercase; color: #FF6600; margin: 0; }
+                    .subtitle { font-size: 12px; color: #6B6B68; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+                    .badge { display: inline-block; background: #fee2e2; color: #991b1b; font-weight: 800; font-size: 12px; padding: 6px 14px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px; }
+                    .content { padding: 24px 0; line-height: 1.6; }
+                    .order-box { background: #f8f8f7; border-radius: 16px; padding: 20px; margin: 20px 0; border: 1px solid #eaeaea; }
+                    .order-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+                    .footer { text-align: center; font-size: 12px; color: #6B6B68; padding-top: 20px; border-top: 1px solid #eaeaea; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="header">
+                        <span class="badge">Order Cancelled</span>
+                        <h1 class="title">TechPulse</h1>
+                        <p class="subtitle">Order Update</p>
+                    </div>
+                    <div class="content">
+                        <h2>Hello %s,</h2>
+                        <p>Your Order <strong>#%s</strong> has been cancelled.</p>
+                        
+                        <div class="order-box">
+                            <div class="order-row"><span>Order Number:</span> <strong>#%s</strong></div>
+                            <div class="order-row"><span>Status:</span> <strong style="color:#991b1b;">CANCELLED</strong></div>
+                        </div>
+
+                        <p>If this was done in error or if you need assistance, please contact our support team at support@techpulse.lk.</p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 TechPulse Mobile Store. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                getCustomerName(order),
+                order.getOrderNumber(),
+                order.getOrderNumber()
+        );
+
+        sendHtmlEmail(recipient, subject, htmlBody);
+    }
+
+    @Override
+    @Async
     public void sendOtpEmail(String toEmail, String otpCode) {
         String subject = "Your TechPulse Verification Code: " + otpCode;
         String htmlBody = """
@@ -122,6 +369,7 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
+    @Async
     public void sendHtmlEmail(String toEmail, String subject, String htmlBody) {
         if (resendApiKey == null || resendApiKey.isBlank()) {
             log.warn("Resend API Key (RESEND_API_KEY) is not set. Email notification skipped for {}", toEmail);
@@ -154,6 +402,25 @@ public class EmailServiceImpl implements EmailService {
         } catch (Exception e) {
             log.error("Error sending email via Resend API to {}: {}", toEmail, e.getMessage(), e);
         }
+    }
+
+    private String getCustomerEmail(Order order) {
+        if (order == null || order.getCustomer() == null) return null;
+        return order.getCustomer().getEmail();
+    }
+
+    private String getCustomerName(Order order) {
+        if (order == null || order.getCustomer() == null || order.getCustomer().getName() == null || order.getCustomer().getName().isBlank()) {
+            return "Customer";
+        }
+        return order.getCustomer().getName();
+    }
+
+    private String getCustomerAddress(Order order) {
+        if (order == null || order.getCustomer() == null || order.getCustomer().getAddress() == null || order.getCustomer().getAddress().isBlank()) {
+            return "Colombo, Sri Lanka";
+        }
+        return order.getCustomer().getAddress();
     }
 
     private String escapeJson(String input) {
