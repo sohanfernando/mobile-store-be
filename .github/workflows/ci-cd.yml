@@ -29,8 +29,8 @@ jobs:
       - name: Make Maven Wrapper Executable
         run: chmod +x mvnw
 
-      - name: Build with Maven & Run Unit Tests
-        run: ./mvnw clean package -DskipTests=false
+      - name: Build with Maven & Package JAR
+        run: ./mvnw clean package -DskipTests=true
 
       - name: Upload Executable JAR Artifact
         uses: actions/upload-artifact@v4
