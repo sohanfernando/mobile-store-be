@@ -48,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final CouponRedemptionRepository couponRedemptionRepository;
     private final PaymentService paymentService;
     private final OrderMapper orderMapper;
+    private final com.mobilestore.mobile_store.service.EmailService emailService;
     private final OrderEventPublisher orderEventPublisher;
 
     @Override
@@ -140,6 +141,11 @@ public class OrderServiceImpl implements OrderService {
                 savedOrder.getItems().size()
         ));
 
+        // Dispatch Payment Completion email if payment intent exists
+        if (request.getPaymentIntentId() != null && !request.getPaymentIntentId().isBlank()) {
+            emailService.sendPaymentCompletedEmail(savedOrder);
+        }
+
         return orderMapper.toResponseDto(savedOrder);
     }
 
@@ -163,15 +169,29 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponseDto updateOrderStatus(Long id, OrderStatus status) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(id));
+        OrderStatus previousStatus = order.getStatus();
         order.setStatus(status);
-        return orderMapper.toResponseDto(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+
+        // Dispatch transactional email notifications on status changes
+        if (previousStatus != status) {
+            switch (status) {
+                case SHIPPED -> emailService.sendOrderShippedEmail(savedOrder);
+                case DELIVERED -> emailService.sendOrderDeliveredEmail(savedOrder);
+                case CANCELLED -> emailService.sendOrderCancelledEmail(savedOrder);
+                case PROCESSING -> emailService.sendPaymentCompletedEmail(savedOrder);
+            }
+        }
+
+        return orderMapper.toResponseDto(savedOrder);
     }
 
     @Override
     public void cancelOrderByPaymentIntentId(String paymentIntentId) {
         orderRepository.findByPaymentIntentId(paymentIntentId).ifPresent(order -> {
             order.setStatus(OrderStatus.CANCELLED);
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
+            emailService.sendOrderCancelledEmail(savedOrder);
         });
     }
 
