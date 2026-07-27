@@ -12,6 +12,7 @@ import com.mobilestore.mobile_store.dto.request.CreateOrderRequestDto;
 import com.mobilestore.mobile_store.dto.request.UpdateOrderStatusRequestDto;
 import com.mobilestore.mobile_store.dto.response.ApiResponseDto;
 import com.mobilestore.mobile_store.dto.response.OrderResponseDto;
+import com.mobilestore.mobile_store.dto.response.OrderStatusUpdateResponseDto;
 import com.mobilestore.mobile_store.entity.Order;
 import com.mobilestore.mobile_store.exception.OrderNotFoundException;
 import com.mobilestore.mobile_store.repository.OrderRepository;
@@ -48,11 +49,14 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<ApiResponseDto<OrderResponseDto>> updateOrderStatus(
+    public ResponseEntity<ApiResponseDto<OrderStatusUpdateResponseDto>> updateOrderStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateOrderStatusRequestDto request) {
-        OrderResponseDto response = orderService.updateOrderStatus(id, request.getStatus());
-        return ResponseEntity.ok(ApiResponseDto.success("Order status updated successfully", response));
+        OrderStatusUpdateResponseDto result = orderService.updateOrderStatus(id, request.getStatus());
+        String message = Boolean.FALSE.equals(result.emailSent())
+                ? "Order status updated, but the notification email failed to send"
+                : "Order status updated successfully";
+        return ResponseEntity.ok(ApiResponseDto.success(message, result));
     }
 
     @GetMapping("/{id}/pdf")

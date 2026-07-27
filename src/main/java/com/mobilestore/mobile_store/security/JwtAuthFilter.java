@@ -33,9 +33,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             if (jwtService.isValid(token) && !revokedTokenRepository.existsByJti(jwtService.extractJti(token))) {
                 String email = jwtService.extractEmail(token);
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        email, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                String role = jwtService.extractRole(token);
+                // Tokens without a recognized role claim (e.g. malformed/foreign tokens) are
+                // never granted any authority - only ADMIN and CUSTOMER are ever issued by us.
+                if ("ADMIN".equals(role) || "CUSTOMER".equals(role)) {
+                    var authentication = new UsernamePasswordAuthenticationToken(
+                            email, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         }
 

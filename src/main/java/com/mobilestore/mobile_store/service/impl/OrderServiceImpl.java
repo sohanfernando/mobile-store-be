@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mobilestore.mobile_store.dto.request.CreateOrderRequestDto;
 import com.mobilestore.mobile_store.dto.response.OrderResponseDto;
+import com.mobilestore.mobile_store.dto.response.OrderStatusUpdateResponseDto;
 import com.mobilestore.mobile_store.entity.Coupon;
 import com.mobilestore.mobile_store.entity.CouponRedemption;
 import com.mobilestore.mobile_store.entity.Customer;
@@ -143,7 +144,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Dispatch Payment Completion email if payment intent exists
         if (request.getPaymentIntentId() != null && !request.getPaymentIntentId().isBlank()) {
-            emailService.sendPaymentCompletedEmail(savedOrder);
+            emailService.sendPaymentCompletedEmailAsync(savedOrder);
         }
 
         return orderMapper.toResponseDto(savedOrder);
@@ -166,24 +167,26 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderResponseDto updateOrderStatus(Long id, OrderStatus status) {
+    public OrderStatusUpdateResponseDto updateOrderStatus(Long id, OrderStatus status) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(id));
         OrderStatus previousStatus = order.getStatus();
         order.setStatus(status);
         Order savedOrder = orderRepository.save(order);
 
-        // Dispatch transactional email notifications on status changes
+        // Dispatch transactional email notifications on status changes. Sent synchronously so the
+        // admin action can report back whether the notification actually went out.
+        Boolean emailSent = null;
         if (previousStatus != status) {
-            switch (status) {
+            emailSent = switch (status) {
                 case SHIPPED -> emailService.sendOrderShippedEmail(savedOrder);
                 case DELIVERED -> emailService.sendOrderDeliveredEmail(savedOrder);
                 case CANCELLED -> emailService.sendOrderCancelledEmail(savedOrder);
                 case PROCESSING -> emailService.sendPaymentCompletedEmail(savedOrder);
-            }
+            };
         }
 
-        return orderMapper.toResponseDto(savedOrder);
+        return new OrderStatusUpdateResponseDto(orderMapper.toResponseDto(savedOrder), emailSent);
     }
 
     @Override
@@ -191,7 +194,7 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.findByPaymentIntentId(paymentIntentId).ifPresent(order -> {
             order.setStatus(OrderStatus.CANCELLED);
             Order savedOrder = orderRepository.save(order);
-            emailService.sendOrderCancelledEmail(savedOrder);
+            emailService.sendOrderCancelledEmailAsync(savedOrder);
         });
     }
 

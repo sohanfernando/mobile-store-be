@@ -19,16 +19,25 @@ class JwtServiceTest {
 
     @Test
     void generatedTokenRoundTripsToOriginalEmail() {
-        String token = jwtService.generateToken("admin@example.com");
+        String token = jwtService.generateToken("admin@example.com", "ADMIN");
 
         assertThat(jwtService.isValid(token)).isTrue();
         assertThat(jwtService.extractEmail(token)).isEqualTo("admin@example.com");
     }
 
     @Test
+    void generatedTokenCarriesTheGivenRole() {
+        String adminToken = jwtService.generateToken("admin@example.com", "ADMIN");
+        String customerToken = jwtService.generateToken("customer@example.com", "CUSTOMER");
+
+        assertThat(jwtService.extractRole(adminToken)).isEqualTo("ADMIN");
+        assertThat(jwtService.extractRole(customerToken)).isEqualTo("CUSTOMER");
+    }
+
+    @Test
     void generatedTokenHasAUniqueJti() {
-        String tokenA = jwtService.generateToken("admin@example.com");
-        String tokenB = jwtService.generateToken("admin@example.com");
+        String tokenA = jwtService.generateToken("admin@example.com", "ADMIN");
+        String tokenB = jwtService.generateToken("admin@example.com", "ADMIN");
 
         assertThat(jwtService.extractJti(tokenA)).isNotBlank();
         assertThat(jwtService.extractJti(tokenA)).isNotEqualTo(jwtService.extractJti(tokenB));
@@ -41,7 +50,7 @@ class JwtServiceTest {
 
     @Test
     void tokenSignedWithDifferentSecretIsInvalid() {
-        String token = jwtService.generateToken("admin@example.com");
+        String token = jwtService.generateToken("admin@example.com", "ADMIN");
 
         JwtService otherService = new JwtService();
         ReflectionTestUtils.setField(otherService, "secret", "a-completely-different-secret-key-that-is-also-long-enough");
@@ -53,7 +62,7 @@ class JwtServiceTest {
     @Test
     void expiredTokenIsInvalid() {
         ReflectionTestUtils.setField(jwtService, "expirationMs", -1000L);
-        String token = jwtService.generateToken("admin@example.com");
+        String token = jwtService.generateToken("admin@example.com", "ADMIN");
 
         assertThat(jwtService.isValid(token)).isFalse();
     }

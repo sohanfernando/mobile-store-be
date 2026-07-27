@@ -39,13 +39,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Admin-only surface: coupon management, analytics, review moderation,
                         // customer management, admin invoice download.
-                        .requestMatchers("/api/admin/**").authenticated()
+                        // hasRole (not authenticated()) matters now that customer JWTs exist too -
+                        // a valid customer token must never satisfy an admin-only check.
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // Admin-only product catalog mutations (public GETs stay open).
-                        .requestMatchers(HttpMethod.POST, "/api/products").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/products/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/products").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/products/*/status").hasRole("ADMIN")
                         // Admin-only order status transitions.
-                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").hasRole("ADMIN")
                         .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

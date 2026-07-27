@@ -114,6 +114,7 @@ public class ProductMapper {
                 .ramGb(product.getRamGb())
                 .storageGb(product.getStorageGb())
                 .warrantyPeriod(product.getWarrantyPeriod())
+                .active(product.isActive())
                 .colorVariants(variants)
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
