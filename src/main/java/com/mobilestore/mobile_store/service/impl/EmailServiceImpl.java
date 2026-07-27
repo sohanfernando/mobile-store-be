@@ -86,9 +86,14 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     @Async
-    public void sendPaymentCompletedEmail(Order order) {
+    public void sendPaymentCompletedEmailAsync(Order order) {
+        sendPaymentCompletedEmail(order);
+    }
+
+    @Override
+    public boolean sendPaymentCompletedEmail(Order order) {
         String recipient = getCustomerEmail(order);
-        if (recipient == null || recipient.isBlank()) return;
+        if (recipient == null || recipient.isBlank()) return false;
 
         String subject = "Payment Confirmed for Order #" + order.getOrderNumber() + " - TechPulse";
         String htmlBody = """
@@ -144,14 +149,13 @@ public class EmailServiceImpl implements EmailService {
                 order.getTotal() != null ? order.getTotal() : java.math.BigDecimal.ZERO
         );
 
-        sendHtmlEmail(recipient, subject, htmlBody);
+        return sendHtmlEmailSync(recipient, subject, htmlBody);
     }
 
     @Override
-    @Async
-    public void sendOrderShippedEmail(Order order) {
+    public boolean sendOrderShippedEmail(Order order) {
         String recipient = getCustomerEmail(order);
-        if (recipient == null || recipient.isBlank()) return;
+        if (recipient == null || recipient.isBlank()) return false;
 
         String subject = "🚚 Your Order #" + order.getOrderNumber() + " Has Been Shipped! - TechPulse";
         String htmlBody = """
@@ -206,14 +210,13 @@ public class EmailServiceImpl implements EmailService {
                 getCustomerAddress(order)
         );
 
-        sendHtmlEmail(recipient, subject, htmlBody);
+        return sendHtmlEmailSync(recipient, subject, htmlBody);
     }
 
     @Override
-    @Async
-    public void sendOrderDeliveredEmail(Order order) {
+    public boolean sendOrderDeliveredEmail(Order order) {
         String recipient = getCustomerEmail(order);
-        if (recipient == null || recipient.isBlank()) return;
+        if (recipient == null || recipient.isBlank()) return false;
 
         String subject = "🎉 Your Order #" + order.getOrderNumber() + " Has Been Delivered! - TechPulse";
         String htmlBody = """
@@ -267,14 +270,19 @@ public class EmailServiceImpl implements EmailService {
                 getCustomerAddress(order)
         );
 
-        sendHtmlEmail(recipient, subject, htmlBody);
+        return sendHtmlEmailSync(recipient, subject, htmlBody);
     }
 
     @Override
     @Async
-    public void sendOrderCancelledEmail(Order order) {
+    public void sendOrderCancelledEmailAsync(Order order) {
+        sendOrderCancelledEmail(order);
+    }
+
+    @Override
+    public boolean sendOrderCancelledEmail(Order order) {
         String recipient = getCustomerEmail(order);
-        if (recipient == null || recipient.isBlank()) return;
+        if (recipient == null || recipient.isBlank()) return false;
 
         String subject = "Order Cancellation Update #" + order.getOrderNumber() + " - TechPulse";
         String htmlBody = """
@@ -324,7 +332,7 @@ public class EmailServiceImpl implements EmailService {
                 order.getOrderNumber()
         );
 
-        sendHtmlEmail(recipient, subject, htmlBody);
+        return sendHtmlEmailSync(recipient, subject, htmlBody);
     }
 
     @Override
@@ -371,9 +379,13 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Async
     public void sendHtmlEmail(String toEmail, String subject, String htmlBody) {
+        sendHtmlEmailSync(toEmail, subject, htmlBody);
+    }
+
+    private boolean sendHtmlEmailSync(String toEmail, String subject, String htmlBody) {
         if (resendApiKey == null || resendApiKey.isBlank()) {
             log.warn("Resend API Key (RESEND_API_KEY) is not set. Email notification skipped for {}", toEmail);
-            return;
+            return false;
         }
 
         try {
@@ -396,11 +408,14 @@ public class EmailServiceImpl implements EmailService {
 
             if (response.statusCode() == 200 || response.statusCode() == 201) {
                 log.info("Email sent successfully via Resend to {}. Response: {}", toEmail, response.body());
+                return true;
             } else {
                 log.error("Failed to send email via Resend to {}. Status: {}, Response: {}", toEmail, response.statusCode(), response.body());
+                return false;
             }
         } catch (Exception e) {
             log.error("Error sending email via Resend API to {}: {}", toEmail, e.getMessage(), e);
+            return false;
         }
     }
 

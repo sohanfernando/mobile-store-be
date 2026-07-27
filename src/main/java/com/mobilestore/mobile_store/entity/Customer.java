@@ -57,6 +57,9 @@ public class Customer {
     @Column(length = 100)
     private String country;
 
+    @Column(name = "google_id", length = 50, unique = true)
+    private String googleId;
+
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;

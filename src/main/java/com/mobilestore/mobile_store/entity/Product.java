@@ -64,6 +64,12 @@ public class Product {
     @Column(name = "warranty_period")
     private Integer warrantyPeriod; // in months
 
+    // Archived (inactive) products are hidden from the customer catalog but kept in the DB -
+    // needed because past orders hold a NOT NULL FK to this row and can never allow a hard delete.
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ProductColorVariant> colorVariants = new ArrayList<>();
