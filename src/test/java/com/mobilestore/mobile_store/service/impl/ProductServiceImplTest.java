@@ -1,5 +1,6 @@
 package com.mobilestore.mobile_store.service.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -114,5 +115,52 @@ class ProductServiceImplTest {
 
         verify(fileStorageService, times(1)).delete("/uploads/products/b.png");
         verify(fileStorageService, never()).delete("/uploads/products/a.png");
+    }
+
+    @Test
+    void getAllProductsReturnsOnlyActiveOnesByDefault() {
+        Product active = Product.builder().id(1L).name("Active Phone").brand("Acme")
+                .price(BigDecimal.valueOf(1000)).active(true).build();
+        when(productRepository.findByActiveTrue()).thenReturn(List.of(active));
+
+        var result = service.getAllProducts(false);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).isActive()).isTrue();
+        verify(productRepository, never()).findAll();
+    }
+
+    @Test
+    void getAllProductsIncludesArchivedWhenRequested() {
+        Product active = Product.builder().id(1L).name("Active Phone").brand("Acme")
+                .price(BigDecimal.valueOf(1000)).active(true).build();
+        Product archived = Product.builder().id(2L).name("Old Phone").brand("Acme")
+                .price(BigDecimal.valueOf(500)).active(false).build();
+        when(productRepository.findAll()).thenReturn(List.of(active, archived));
+
+        var result = service.getAllProducts(true);
+
+        assertThat(result).hasSize(2);
+        verify(productRepository, never()).findByActiveTrue();
+    }
+
+    @Test
+    void setProductActiveArchivesAProduct() {
+        Product product = Product.builder().id(1L).name("Phone").brand("Acme")
+                .price(BigDecimal.valueOf(1000)).active(true).build();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = service.setProductActive(1L, false);
+
+        assertThat(result.isActive()).isFalse();
+        assertThat(product.isActive()).isFalse();
+    }
+
+    @Test
+    void setProductActiveThrowsWhenProductMissing() {
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ProductNotFoundException.class, () -> service.setProductActive(99L, false));
     }
 }

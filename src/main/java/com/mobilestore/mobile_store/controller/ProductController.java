@@ -2,6 +2,7 @@ package com.mobilestore.mobile_store.controller;
 
 import com.mobilestore.mobile_store.dto.request.CreateProductRequestDto;
 import com.mobilestore.mobile_store.dto.request.UpdateProductRequestDto;
+import com.mobilestore.mobile_store.dto.request.UpdateProductStatusRequestDto;
 import com.mobilestore.mobile_store.dto.response.ApiResponseDto;
 import com.mobilestore.mobile_store.dto.response.ProductResponseDto;
 import com.mobilestore.mobile_store.service.ProductService;
@@ -36,8 +37,9 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponseDto<List<ProductResponseDto>>> getAllProducts() {
-        List<ProductResponseDto> response = productService.getAllProducts();
+    public ResponseEntity<ApiResponseDto<List<ProductResponseDto>>> getAllProducts(
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        List<ProductResponseDto> response = productService.getAllProducts(includeInactive);
         return ResponseEntity.ok(ApiResponseDto.success("Products fetched successfully", response));
     }
 
@@ -47,6 +49,15 @@ public class ProductController {
             @Valid @RequestBody UpdateProductRequestDto request) {
         ProductResponseDto response = productService.updateProduct(id, request);
         return ResponseEntity.ok(ApiResponseDto.success("Product updated successfully", response));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponseDto<ProductResponseDto>> updateProductStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateProductStatusRequestDto request) {
+        ProductResponseDto response = productService.setProductActive(id, request.getActive());
+        String message = request.getActive() ? "Product restored successfully" : "Product archived successfully";
+        return ResponseEntity.ok(ApiResponseDto.success(message, response));
     }
 
     @DeleteMapping("/{id}")

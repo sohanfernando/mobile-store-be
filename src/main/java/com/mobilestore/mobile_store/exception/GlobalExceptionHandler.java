@@ -151,6 +151,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
+    @ExceptionHandler(InvalidOtpException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidOtp(InvalidOtpException ex) {
+        ErrorResponse error = new ErrorResponse(
+                false,
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(GoogleAuthException.class)
+    public ResponseEntity<ErrorResponse> handleGoogleAuth(GoogleAuthException ex) {
+        ErrorResponse error = new ErrorResponse(
+                false,
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
     @ExceptionHandler(TooManyLoginAttemptsException.class)
     public ResponseEntity<ErrorResponse> handleTooManyLoginAttempts(TooManyLoginAttemptsException ex) {
         ErrorResponse error = new ErrorResponse(

@@ -47,8 +47,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getAllProducts(){
-        return productRepository.findAll().stream()
+    public List<ProductResponseDto> getAllProducts(boolean includeInactive){
+        List<Product> products = includeInactive
+                ? productRepository.findAll()
+                : productRepository.findByActiveTrue();
+        return products.stream()
                 .map(productMapper::toResponseDto)
                 .toList();
     }
@@ -73,6 +76,14 @@ public class ProductServiceImpl implements ProductService {
         } catch (DataIntegrityViolationException ex) {
             throw new ProductVariantInUseException();
         }
+    }
+
+    @Override
+    public ProductResponseDto setProductActive(Long id, boolean active){
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ProductNotFoundException(id));
+        product.setActive(active);
+        return productMapper.toResponseDto(productRepository.save(product));
     }
 
     @Override

@@ -30,6 +30,7 @@ public class ProductResponseDto {
     private Integer ramGb;
     private Integer storageGb;
     private Integer warrantyPeriod;
+    private boolean active;
     private List<ColorVariantResponseDto> colorVariants;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

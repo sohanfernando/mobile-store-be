@@ -37,11 +37,12 @@ class JwtAuthFilterTest {
     }
 
     @Test
-    void authenticatesWhenTokenValidAndNotRevoked() throws Exception {
+    void authenticatesAdminTokenWithAdminAuthority() throws Exception {
         when(jwtService.isValid("good-token")).thenReturn(true);
         when(jwtService.extractJti("good-token")).thenReturn("jti-1");
         when(revokedTokenRepository.existsByJti("jti-1")).thenReturn(false);
         when(jwtService.extractEmail("good-token")).thenReturn("admin@example.com");
+        when(jwtService.extractRole("good-token")).thenReturn("ADMIN");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("Authorization", "Bearer good-token");
@@ -50,8 +51,52 @@ class JwtAuthFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
-        assertThat(SecurityContextHolder.getContext().getAuthentication().getName()).isEqualTo("admin@example.com");
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getName()).isEqualTo("admin@example.com");
+        assertThat(authentication.getAuthorities())
+                .extracting(Object::toString)
+                .containsExactly("ROLE_ADMIN");
+    }
+
+    @Test
+    void authenticatesCustomerTokenWithCustomerAuthorityOnly() throws Exception {
+        when(jwtService.isValid("cust-token")).thenReturn(true);
+        when(jwtService.extractJti("cust-token")).thenReturn("jti-3");
+        when(revokedTokenRepository.existsByJti("jti-3")).thenReturn(false);
+        when(jwtService.extractEmail("cust-token")).thenReturn("buyer@example.com");
+        when(jwtService.extractRole("cust-token")).thenReturn("CUSTOMER");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer cust-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getAuthorities())
+                .extracting(Object::toString)
+                .containsExactly("ROLE_CUSTOMER")
+                .doesNotContain("ROLE_ADMIN");
+    }
+
+    @Test
+    void doesNotAuthenticateWhenRoleClaimIsUnrecognized() throws Exception {
+        when(jwtService.isValid("weird-token")).thenReturn(true);
+        when(jwtService.extractJti("weird-token")).thenReturn("jti-4");
+        when(revokedTokenRepository.existsByJti("jti-4")).thenReturn(false);
+        when(jwtService.extractRole("weird-token")).thenReturn(null);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer weird-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     @Test
